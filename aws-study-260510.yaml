@@ -27,7 +27,8 @@ Resources:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
 
-  #Public Subnet(1つ目)
+##Public Subnet##
+  #1つ目
   PublicSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
@@ -38,8 +39,7 @@ Resources:
       Tags:
         - Key: Name
           Value: aws-study-public-subnet-1
-
-  #Public Subnet（２つ目）
+  #２つ目
   PublicSubnetC:
     Type: AWS::EC2::Subnet
     Properties:
@@ -51,7 +51,8 @@ Resources:
         - Key: Name
           Value: aws-study-public-subnet-2
 
-  #PRIVATE Subnet(1つ目)
+##Private Subnet##
+  #1つ目
   PrivateSubnetA:
     Type:  AWS::EC2::Subnet
     Properties:
@@ -61,8 +62,7 @@ Resources:
       Tags:
         - Key: Name
           Value: aws-study-private-subnet-1
-
-  #PRIVATE Subnet(2つ目)
+  #2つ目
   PrivateSubnetC:
     Type:  AWS::EC2::Subnet
     Properties:
@@ -75,7 +75,7 @@ Resources:
 
 #NATGatewayは作成しない
 
-  ##Pubric Rute Tableを作成
+##Pubric Rute Tableを作成##
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -106,23 +106,10 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
 
 
-  #Security Group
-  #ALBのSecurity Group
-  ALBSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for ALB
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: aws-study-alb-sg
+##Security Groupの作成##
+
   
-  #EC2のSecurity Group
+  #EC2-sg
   SecurityGroupEC2:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -154,6 +141,7 @@ Resources:
         - Key: Name
           Value: aws-study-ec2-sg      
 
+   #RDS-sg
   SecurityGroupRDS:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -176,7 +164,30 @@ Resources:
         - Key: Name
           Value: aws-study-rds-sg
 
-#EC2の作成
+   #ALB-sg
+  ALBsecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from Internet
+      VpcId: !Ref VPC
+
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+      Tags:
+        - Key: Name
+          Value: aws-study-alb
+
+
+
+##EC2の作成##
   myEC2Instance:
     Type: AWS::EC2::Instance
     Properties:
@@ -192,8 +203,8 @@ Resources:
         - Key: Name
           Value: aws-study-ec2    
 
-##RDSの作成 
-  #RDSのセキュリティグループ
+##RDSの作成## 
+  #RDSのサブネット
   DBsubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -202,7 +213,7 @@ Resources:
         - !Ref PublicSubnetA
         - !Ref PublicSubnetC
 
-  #RDS作成
+  #RDS本体
   ApplicationDatabase:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Delete
@@ -226,27 +237,7 @@ Resources:
         - Key: Name
           Value: aws-study-rds
 
-  ##ALBの作成
-  #security groupの作成
-  ALBsecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allow HTTP from Internet
-      VpcId: !Ref VPC
-
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
-
-      Tags:
-        - Key: Name
-          Value: aws-study-alb
+##ALBの作成##
   #target groupの作成
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
