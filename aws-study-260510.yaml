@@ -1,0 +1,298 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AWS-study-Template
+
+Resources:
+  #VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.2.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: aws-study-vpc
+
+  #Inter Net Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: aws-study-igw
+  #VPCにアタッチ
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+##Public Subnet##
+  #1つ目
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.2.1.0/24
+      AvailabilityZone: ap-northeast-1a
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: aws-study-public-subnet-1
+  #２つ目
+  PublicSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.2.2.0/24
+      AvailabilityZone: ap-northeast-1c
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: aws-study-public-subnet-2
+
+##Private Subnet##
+  #1つ目
+  PrivateSubnetA:
+    Type:  AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.2.3.0/24
+      AvailabilityZone: ap-northeast-1a
+      Tags:
+        - Key: Name
+          Value: aws-study-private-subnet-1
+  #2つ目
+  PrivateSubnetC:
+    Type:  AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.2.4.0/24
+      AvailabilityZone: ap-northeast-1c
+      Tags:
+        - Key: Name
+          Value: aws-study-private-subnet-2
+
+#NATGatewayは作成しない
+
+##Pubric Rute Tableを作成##
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: aws-study-publicroutetable
+  #どこにどう行くかを定義(Public)
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  #このルートテーブルをどのサブネットで使うか
+  #PublicSubnetA
+  PublicSubnetARouteAccoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+  #PublicSubnetC
+  PublicSubnetCRouteAccoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetC
+      RouteTableId: !Ref PublicRouteTable
+
+
+##Security Groupの作成##
+
+  
+  #EC2-sg
+  SecurityGroupEC2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH and HTTP(8080)
+      VpcId: !Ref VPC
+
+      SecurityGroupIngress:
+       #sshデフォルト
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+       #HTTP(web公開)
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+       #アプリ(8080)
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+
+      SecurityGroupEgress:
+      #外向きはすべて許可
+        - IpProtocol:  -1
+          CidrIp: 0.0.0.0/0    
+      Tags:
+        - Key: Name
+          Value: aws-study-ec2-sg      
+
+   #RDS-sg
+  SecurityGroupRDS:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow DB acces only from EC2
+      VpcId: !Ref VPC    
+
+      SecurityGroupIngress:
+      # MySQL / MariaDB（3306）
+      - IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        SourceSecurityGroupId: !Ref SecurityGroupEC2
+
+      SecurityGroupEgress:
+      # 通常は全許可（デフォルト）
+      - IpProtocol: -1
+        CidrIp: 0.0.0.0/0
+
+      Tags:
+        - Key: Name
+          Value: aws-study-rds-sg
+
+   #ALB-sg
+  ALBsecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from Internet
+      VpcId: !Ref VPC
+
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+      Tags:
+        - Key: Name
+          Value: aws-study-alb
+
+
+
+##EC2の作成##
+  myEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+      InstanceType: t3.micro
+      SubnetId: !Ref PublicSubnetA
+      SecurityGroupIds:
+        - !Ref SecurityGroupEC2
+      DisableApiTermination: false
+      KeyName: awskey
+
+      Tags:
+        - Key: Name
+          Value: aws-study-ec2    
+
+##RDSの作成## 
+  #RDSのサブネット
+  DBsubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: RDS subnet group
+      SubnetIds:
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetC
+
+  #RDS本体
+  ApplicationDatabase:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Engine: mysql
+      EngineVersion: 8.0.40
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: 20
+      StorageType: gp2
+      MasterUsername: admin
+      MasterUserPassword: Xiyl4327
+      DBName: awsstudy
+      VPCSecurityGroups:
+        - !Ref SecurityGroupRDS
+      DBSubnetGroupName: !Ref DBsubnetGroup
+      PubliclyAccessible: true
+      MultiAZ: false
+      BackupRetentionPeriod: 1
+      Tags:
+        - Key: Name
+          Value: aws-study-rds
+
+##ALBの作成##
+  #target groupの作成
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: aws-study-tg
+      Port: 8080
+      Protocol: HTTP
+      VpcId: !Ref VPC
+    
+      TargetType: instance
+
+      Targets:
+        - Id: !Ref myEC2Instance
+          Port: 8080
+
+      #healthcheck paramaters
+      HealthCheckProtocol: HTTP
+      HealthCheckPort: traffic-port
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 5
+      UnhealthyThresholdCount: 2
+      Matcher:
+        HttpCode: "200,300,301"
+
+      Tags:
+        - Key: Name
+          Value: aws-study-alb-tg
+  #ALB本体
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: aws-study-alb
+      Scheme: internet-facing 
+      Subnets:
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetC
+
+      SecurityGroups:
+        - !Ref ALBsecurityGroup
+  
+      Type: application
+  
+      Tags:
+        - Key: Name
+          Value: aws-study-alb
+
+  #listenerの作成（入口）
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
