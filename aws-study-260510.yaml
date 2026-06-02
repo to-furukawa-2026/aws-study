@@ -1,6 +1,13 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: AWS-study-Template
 
+#指摘３パスワードのコーディングをやめる
+Parameters:  
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Description: RDS Master Password
+
 Resources:
   #VPC
   VPC:
@@ -121,7 +128,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0
+          CidrIp: 192.168.10.1/0 #指摘１自分のIPアドレスのみに修正_260602
        #HTTP(web公開)
         - IpProtocol: tcp
           FromPort: 80
@@ -210,8 +217,8 @@ Resources:
     Properties:
       DBSubnetGroupDescription: RDS subnet group
       SubnetIds:
-        - !Ref PublicSubnetA
-        - !Ref PublicSubnetC
+        - !Ref PrivateSubnetA #指摘２Pubricからprivateに修正_260602
+        - !Ref PrivateSubnetC #指摘２Pubricからprivateに修正_260602
 
   #RDS本体
   ApplicationDatabase:
@@ -225,12 +232,12 @@ Resources:
       AllocatedStorage: 20
       StorageType: gp2
       MasterUsername: admin
-      MasterUserPassword: Xiyl4327
+      MasterUserPassword: !Ref DBPassword #指摘３パスワードのコーディングをやめる
       DBName: awsstudy
       VPCSecurityGroups:
         - !Ref SecurityGroupRDS
       DBSubnetGroupName: !Ref DBsubnetGroup
-      PubliclyAccessible: true
+      PubliclyAccessible: false #指摘2trueからfalseに修正_260602
       MultiAZ: false
       BackupRetentionPeriod: 1
       Tags:
