@@ -128,7 +128,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 192.168.10.1/32 #指摘１自分のIPアドレスのみに修正_260602
+          CidrIp: 106.72.95.128/32 #指摘１自分のIPアドレスのみに修正_260602
        #HTTP(web公開)
         - IpProtocol: tcp
           FromPort: 80
