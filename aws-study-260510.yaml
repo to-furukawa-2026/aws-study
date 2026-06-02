@@ -128,7 +128,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 192.168.10.1/0 #指摘１自分のIPアドレスのみに修正_260602
+          CidrIp: 192.168.10.1/32 #指摘１自分のIPアドレスのみに修正_260602
        #HTTP(web公開)
         - IpProtocol: tcp
           FromPort: 80
@@ -138,7 +138,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 8080
           ToPort: 8080
-          CidrIp: 0.0.0.0/0
+          SourceSecurityGroupId: !Ref ALBsecurityGroup
 
       SecurityGroupEgress:
       #外向きはすべて許可
