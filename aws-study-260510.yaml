@@ -129,21 +129,16 @@ Resources:
           FromPort: 22
           ToPort: 22
           CidrIp: 106.72.95.128/32 #指摘１自分のIPアドレスのみに修正_260602
-       #HTTP(web公開)
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
        #アプリ(8080)
         - IpProtocol: tcp
           FromPort: 8080
           ToPort: 8080
           SourceSecurityGroupId: !Ref ALBsecurityGroup
 
-      SecurityGroupEgress:
       #外向きはすべて許可
+      SecurityGroupEgress:
         - IpProtocol:  -1
-          CidrIp: 0.0.0.0/0    
+          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: aws-study-ec2-sg      
@@ -162,11 +157,10 @@ Resources:
         ToPort: 3306
         SourceSecurityGroupId: !Ref SecurityGroupEC2
 
-      SecurityGroupEgress:
       # 通常は全許可（デフォルト）
+      SecurityGroupEgress:
       - IpProtocol: -1
         CidrIp: 0.0.0.0/0
-
       Tags:
         - Key: Name
           Value: aws-study-rds-sg
@@ -187,7 +181,6 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
-
       Tags:
         - Key: Name
           Value: aws-study-alb
@@ -198,7 +191,7 @@ Resources:
   myEC2Instance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+      ImageId: "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
       InstanceType: t3.micro
       SubnetId: !Ref PublicSubnetA
       SecurityGroupIds:
