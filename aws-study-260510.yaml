@@ -1,12 +1,17 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: AWS-study-Template
 
-#指摘３パスワードのコーディングをやめる
+#パスワード
 Parameters:  
   DBPassword:
     Type: String
     NoEcho: true
     Description: RDS Master Password
+#waf Log Group name
+  WAFLogGroupName:
+    Type: String
+    Default: aws-waf-logs-study
+    Description: WAF Log Group Name
 
 Resources:
   #VPC
@@ -220,7 +225,7 @@ Resources:
     UpdateReplacePolicy: Delete
     Properties:
       Engine: mysql
-      EngineVersion: 8.0.40
+      EngineVersion: 8.0.45
       DBInstanceClass: db.t3.micro
       AllocatedStorage: 20
       StorageType: gp2
@@ -296,3 +301,95 @@ Resources:
       DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref TargetGroup
+
+  #SNSの作成
+  snsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: EC2-Alarm 
+      Subscription:
+        - Protocol: email
+          Endpoint: hoshino.tori2@gmail.com          
+
+  #Alarmの設定
+  EC2CPUUtilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: aws-study-cpu-utilizarion-alarm
+      AlarmDescription: "aws-study EC2のCPU使用率が 5%になりました。"
+
+      Namespace: "AWS/EC2"
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref myEC2Instance
+      MetricName: "CPUUtilization"
+      Unit: Percent
+
+      Period: 180
+      Statistic: "Average"
+
+      Threshold: 5
+      ComparisonOperator: "GreaterThanOrEqualToThreshold"
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      TreatMissingData: "missing"
+
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref snsTopic
+  
+  #AWSWAFの設定
+  WebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: aws-study-webacl
+      Scope: REGIONAL
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        MetricName: aws-study-webacl
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+
+      Rules:
+        - Name: CommonRuleSet
+          Priority: 1
+
+          OverrideAction:
+            None: {}
+                          
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+
+          VisibilityConfig:
+            MetricName: CommonRuleSet
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+
+  #ALBへ関連付け
+  WebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn: !Ref ApplicationLoadBalancer
+      WebACLArn: !GetAtt WebACL.Arn
+  
+  #CloudWatch Logs
+  #ロググループ
+  WAFLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Ref WAFLogGroupName
+      RetentionInDays: 7
+
+  #CloudWatch LogsへWAFログを出力する
+  WAFLoggingConfiguration:
+    Type: AWS::WAFv2::LoggingConfiguration
+    DependsOn:
+      - WebACL
+      - WAFLogGroup
+    Properties:
+        ResourceArn: !GetAtt WebACL.Arn
+        LogDestinationConfigs:
+          - !GetAtt WAFLogGroup.Arn
