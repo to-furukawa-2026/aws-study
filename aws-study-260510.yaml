@@ -12,6 +12,9 @@ Parameters:
     Type: String
     Default: aws-waf-logs-study
     Description: WAF Log Group Name
+#Email addressの取得
+  EmailAddress:
+   Type: String
 
 Resources:
   #VPC
@@ -309,7 +312,7 @@ Resources:
       TopicName: EC2-Alarm 
       Subscription:
         - Protocol: email
-          Endpoint: hoshino.tori2@gmail.com          
+          Endpoint: !Ref EmailAddress          
 
   #Alarmの設定
   EC2CPUUtilizationAlarm:
@@ -372,7 +375,7 @@ Resources:
   WebACLAssociation:
     Type: AWS::WAFv2::WebACLAssociation
     Properties:
-      ResourceArn: !Ref ApplicationLoadBalancer
+      ResourceArn: !GetAtt ApplicationLoadBalancer.LoadBalancerArn
       WebACLArn: !GetAtt WebACL.Arn
   
   #CloudWatch Logs
