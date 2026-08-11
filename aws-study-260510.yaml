@@ -14,7 +14,7 @@ Parameters:
     Description: WAF Log Group Name
 #Email addressの取得
   EmailAddress:
-   Type: String
+    Type: String
 
 Resources:
   #VPC
